@@ -187,8 +187,8 @@ async function applyPatch(patch) {
   }
 
   if (targetWidth != null || targetHeight != null) {
-    const width = clamp(targetWidth ?? node.width, 120, 1200);
-    const height = clamp(targetHeight ?? node.height, 120, 1200);
+    const width = clamp(targetWidth !== null ? targetWidth : node.width, 120, 1200);
+    const height = clamp(targetHeight !== null ? targetHeight : node.height, 120, 1200);
     if ("resize" in node) {
       node.resize(width, height);
     }
