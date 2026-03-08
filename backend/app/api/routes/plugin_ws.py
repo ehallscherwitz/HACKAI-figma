@@ -1,15 +1,22 @@
+import asyncio
+import logging
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
 from app.db.mongo import get_mongo_db
 from app.models.plugin import PluginAckMessage, PluginHelloMessage, PluginPageSnapshotMessage
+from app.services.langchain_figma import generate_adaptive_frame
 from app.services.plugin_sync import (
+    dispatch_patch_to_plugin,
     mark_plugin_disconnected,
     plugin_manager,
     record_plugin_ack,
     upsert_page_snapshot,
     upsert_plugin_session,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ws/plugin", tags=["plugin"])
 
@@ -110,9 +117,29 @@ async def plugin_websocket(
                         "page_id": snapshot.page_id,
                     }
                 )
+
+                asyncio.create_task(
+                    _auto_adapt_frame(db, snapshot.project_id)
+                )
                 continue
 
             await websocket.send_json({"type": "error", "message": "Unknown websocket message type"})
     except WebSocketDisconnect:
         plugin_manager.disconnect(project_id, websocket)
         await mark_plugin_disconnected(db, project_id)
+
+
+async def _auto_adapt_frame(db, project_id: str) -> None:
+    """Background task: generate an adaptive frame after a snapshot arrives."""
+    try:
+        card_id = f"adapt-{project_id}"
+        patch = await generate_adaptive_frame(
+            db=db,
+            project_id=project_id,
+            card_id=card_id,
+        )
+        await db.card_patches.insert_one({**patch, "delivery_status": "pending"})
+        await dispatch_patch_to_plugin(db, project_id, patch)
+        logger.info("Auto-adapt frame sent for project %s", project_id)
+    except Exception:
+        logger.exception("Auto-adapt failed for project %s", project_id)

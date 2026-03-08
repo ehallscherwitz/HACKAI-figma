@@ -1,7 +1,11 @@
+import logging
+
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo import ASCENDING
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 mongo_client: AsyncIOMotorClient | None = None
 mongo_db: AsyncIOMotorDatabase | None = None
@@ -14,9 +18,19 @@ async def init_mongo() -> None:
         mongo_db = None
         return
 
-    mongo_client = AsyncIOMotorClient(settings.mongodb_uri)
-    mongo_db = mongo_client[settings.mongodb_db_name]
-    await _ensure_indexes(mongo_db)
+    try:
+        mongo_client = AsyncIOMotorClient(
+            settings.mongodb_uri,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+        )
+        mongo_db = mongo_client[settings.mongodb_db_name]
+        await _ensure_indexes(mongo_db)
+        logger.info("MongoDB connected successfully")
+    except Exception as e:
+        logger.warning("MongoDB connection failed on startup: %s — app will retry on first request", e)
+        mongo_client = None
+        mongo_db = None
 
 
 async def _ensure_indexes(db: AsyncIOMotorDatabase) -> None:

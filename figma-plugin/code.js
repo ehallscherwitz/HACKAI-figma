@@ -276,6 +276,9 @@ async function applyPatch(patch) {
   var fontFamily = null;
   var fontSize = null;
   var cornerRadius = null;
+  var fillRgb = null;
+  var textRgb = null;
+  var frameName = null;
 
   for (var i = 0; i < (patch.operations || []).length; i++) {
     var op = patch.operations[i];
@@ -288,6 +291,9 @@ async function applyPatch(patch) {
     if (op.path === "/font_family") fontFamily = String(op.value);
     if (op.path === "/font_size") fontSize = Number(op.value);
     if (op.path === "/corner_radius") cornerRadius = Number(op.value);
+    if (op.path === "/fill_rgb") fillRgb = op.value;
+    if (op.path === "/text_rgb") textRgb = op.value;
+    if (op.path === "/name") frameName = String(op.value);
   }
 
   if (targetWidth != null) {
@@ -296,10 +302,21 @@ async function applyPatch(patch) {
       node.resize(width, node.height);
     }
   }
+
   if (cornerRadius != null) {
     node.cornerRadius = clamp(cornerRadius, 0, 128);
   }
-  if (colorScheme) {
+
+  if (fillRgb && typeof fillRgb === "object") {
+    var color = rgb(
+      clamp(fillRgb.r || 0, 0, 255),
+      clamp(fillRgb.g || 0, 0, 255),
+      clamp(fillRgb.b || 0, 0, 255)
+    );
+    if ("fills" in node) {
+      node.fills = [{ type: "SOLID", color: color }];
+    }
+  } else if (colorScheme) {
     applyColorScheme(node, colorScheme);
     var tn = findChildByName(node, "title");
     if (tn && tn.type === "TEXT") {
@@ -310,6 +327,27 @@ async function applyPatch(patch) {
       sn.fills = [{ type: "SOLID", color: textColorForScheme(colorScheme) }];
     }
   }
+
+  if (textRgb && typeof textRgb === "object") {
+    var txtColor = rgb(
+      clamp(textRgb.r || 0, 0, 255),
+      clamp(textRgb.g || 0, 0, 255),
+      clamp(textRgb.b || 0, 0, 255)
+    );
+    var titleChild = findChildByName(node, "title");
+    if (titleChild && titleChild.type === "TEXT") {
+      titleChild.fills = [{ type: "SOLID", color: txtColor }];
+    }
+    var subtitleChild = findChildByName(node, "subtitle");
+    if (subtitleChild && subtitleChild.type === "TEXT") {
+      subtitleChild.fills = [{ type: "SOLID", color: txtColor }];
+    }
+  }
+
+  if (frameName && "name" in node) {
+    node.name = frameName;
+  }
+
   if (liquidGlass != null) {
     applyLiquidGlass(node, liquidGlass);
   }
