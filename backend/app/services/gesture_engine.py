@@ -8,7 +8,7 @@ MIN_SIZE = 120
 MAX_SIZE = 1200
 DEFAULT_SIZE_STEP = 16
 MAX_SIZE_STEP = 200
-ALLOWED_COLOR_SCHEMES = {"light", "dark", "blue", "green", "purple"}
+ALLOWED_COLOR_SCHEMES = {"warm", "cool", "dark", "bright", "soft"}
 
 
 def _clamp_size(value: int) -> int:
@@ -46,8 +46,6 @@ def apply_gesture(current: CardState, event: GestureEvent) -> tuple[CardState, C
             next_state.height = next_height
     elif event.intent == "change_color_scheme":
         color_scheme = str(event.params.get("color_scheme", "")).strip().lower()
-        if color_scheme and color_scheme not in ALLOWED_COLOR_SCHEMES:
-            raise ValueError("Unsupported color_scheme provided")
         if color_scheme and color_scheme != next_state.color_scheme:
             operations.append(CardOperation(path="/color_scheme", value=color_scheme))
             next_state.color_scheme = color_scheme

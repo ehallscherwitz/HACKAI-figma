@@ -24,19 +24,27 @@ function rgb(r, g, b) {
   return { r: r / 255, g: g / 255, b: b / 255 };
 }
 
+var THEMES = {
+  warm:   { cardBg: rgb(36, 18, 8),   border: rgb(139, 58, 26),  accent: rgb(232, 135, 58), text: rgb(242, 223, 192) },
+  cool:   { cardBg: rgb(13, 20, 36),  border: rgb(30, 58, 95),   accent: rgb(74, 156, 200), text: rgb(200, 223, 239) },
+  dark:   { cardBg: rgb(10, 10, 10),  border: rgb(45, 27, 78),   accent: rgb(123, 47, 190), text: rgb(232, 232, 232) },
+  bright: { cardBg: rgb(255, 255, 255), border: rgb(255, 107, 43), accent: rgb(255, 107, 43), text: rgb(15, 15, 15) },
+  soft:   { cardBg: rgb(250, 245, 255), border: rgb(201, 168, 224), accent: rgb(181, 123, 220), text: rgb(61, 33, 82) }
+};
+
 function colorForScheme(colorScheme) {
-  const normalized = (colorScheme || "light").toLowerCase();
-  if (normalized === "dark") return rgb(32, 36, 44);
-  if (normalized === "blue") return rgb(44, 128, 255);
-  if (normalized === "green") return rgb(43, 176, 114);
-  if (normalized === "purple") return rgb(145, 86, 255);
-  return rgb(243, 244, 246);
+  var t = THEMES[(colorScheme || "dark").toLowerCase()];
+  return t ? t.cardBg : THEMES.dark.cardBg;
+}
+
+function borderForScheme(colorScheme) {
+  var t = THEMES[(colorScheme || "dark").toLowerCase()];
+  return t ? t.border : THEMES.dark.border;
 }
 
 function textColorForScheme(colorScheme) {
-  const normalized = (colorScheme || "light").toLowerCase();
-  if (normalized === "light") return rgb(20, 20, 20);
-  return rgb(255, 255, 255);
+  var t = THEMES[(colorScheme || "dark").toLowerCase()];
+  return t ? t.text : THEMES.dark.text;
 }
 
 function getCurrentContext() {
@@ -116,7 +124,7 @@ async function ensureCardNode(projectId, cardId) {
   const key = nodeMapKey(projectId, cardId);
   const existingNodeId = nodeMap[key];
   if (existingNodeId) {
-    const existing = figma.getNodeById(existingNodeId);
+    const existing = await figma.getNodeByIdAsync(existingNodeId);
     if (existing && "resize" in existing) {
       return existing;
     }
@@ -129,37 +137,73 @@ async function ensureCardNode(projectId, cardId) {
     return selected;
   }
 
-  const frame = figma.createFrame();
-  frame.name = `HACKAI Card ${cardId}`;
+  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+
+  var frame = figma.createFrame();
+  frame.name = "HACKAI Card " + cardId;
   frame.resize(320, 200);
   frame.cornerRadius = 20;
-  frame.fills = [{ type: "SOLID", color: colorForScheme("light") }];
+  frame.fills = [{ type: "SOLID", color: colorForScheme("dark") }];
+  frame.strokes = [{ type: "SOLID", color: borderForScheme("dark") }];
+  frame.strokeWeight = 1.5;
   frame.effects = [
     {
       type: "DROP_SHADOW",
       visible: true,
       blendMode: "NORMAL",
-      color: { r: 0, g: 0, b: 0, a: 0.12 },
-      offset: { x: 0, y: 14 },
-      radius: 24,
+      color: { r: 0, g: 0, b: 0, a: 0.18 },
+      offset: { x: 0, y: 8 },
+      radius: 20,
       spread: 0
     }
   ];
-  frame.paddingLeft = 16;
-  frame.paddingRight = 16;
-  frame.paddingTop = 16;
-  frame.paddingBottom = 16;
+  frame.layoutMode = "VERTICAL";
+  frame.primaryAxisSizingMode = "AUTO";
+  frame.counterAxisSizingMode = "FIXED";
+  frame.primaryAxisAlignItems = "MIN";
+  frame.counterAxisAlignItems = "MIN";
+  frame.itemSpacing = 10;
+  frame.paddingLeft = 24;
+  frame.paddingRight = 24;
+  frame.paddingTop = 24;
+  frame.paddingBottom = 24;
 
-  const label = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
-  label.characters = "HACKAI Live Card";
-  label.fontSize = 24;
-  label.fills = [{ type: "SOLID", color: textColorForScheme("light") }];
-  frame.appendChild(label);
+  var titleNode = figma.createText();
+  titleNode.name = "title";
+  titleNode.fontName = { family: "Inter", style: "Regular" };
+  titleNode.characters = "Tactile";
+  titleNode.fontSize = 24;
+  titleNode.lineHeight = { value: 120, unit: "PERCENT" };
+  titleNode.fills = [{ type: "SOLID", color: textColorForScheme("dark") }];
+  titleNode.textAutoResize = "HEIGHT";
+  titleNode.resize(272, titleNode.height);
+  frame.appendChild(titleNode);
 
-  const viewportCenter = figma.viewport.center;
-  frame.x = viewportCenter.x - frame.width / 2;
-  frame.y = viewportCenter.y - frame.height / 2;
+  var subtitleNode = figma.createText();
+  subtitleNode.name = "subtitle";
+  subtitleNode.fontName = { family: "Inter", style: "Regular" };
+  subtitleNode.characters = " ";
+  subtitleNode.fontSize = 14;
+  subtitleNode.lineHeight = { value: 150, unit: "PERCENT" };
+  subtitleNode.fills = [{ type: "SOLID", color: textColorForScheme("dark") }];
+  subtitleNode.opacity = 0.7;
+  subtitleNode.textAutoResize = "HEIGHT";
+  subtitleNode.resize(272, subtitleNode.height);
+  frame.appendChild(subtitleNode);
+
+  var maxX = -Infinity;
+  for (var i = 0; i < figma.currentPage.children.length; i++) {
+    var child = figma.currentPage.children[i];
+    var right = child.x + child.width;
+    if (right > maxX) maxX = right;
+  }
+  if (maxX === -Infinity) {
+    frame.x = 0;
+    frame.y = 0;
+  } else {
+    frame.x = maxX + 80;
+    frame.y = 0;
+  }
   figma.currentPage.appendChild(frame);
   figma.currentPage.selection = [frame];
   figma.viewport.scrollAndZoomIntoView([frame]);
@@ -170,16 +214,11 @@ async function ensureCardNode(projectId, cardId) {
 }
 
 function applyColorScheme(node, colorScheme) {
-  const fill = { type: "SOLID", color: colorForScheme(colorScheme) };
   if ("fills" in node) {
-    node.fills = [fill];
+    node.fills = [{ type: "SOLID", color: colorForScheme(colorScheme) }];
   }
-  if ("children" in node) {
-    for (const child of node.children) {
-      if (child.type === "TEXT") {
-        child.fills = [{ type: "SOLID", color: textColorForScheme(colorScheme) }];
-      }
-    }
+  if ("strokes" in node) {
+    node.strokes = [{ type: "SOLID", color: borderForScheme(colorScheme) }];
   }
 }
 
@@ -217,32 +256,93 @@ function applyLiquidGlass(node, enabled) {
   }
 }
 
-async function applyPatch(patch) {
-  const node = await ensureCardNode(activeProjectId, patch.card_id);
-  let targetWidth = null;
-  let targetHeight = null;
-  let colorScheme = null;
-  let liquidGlass = null;
+function findChildByName(node, name) {
+  if (!("children" in node)) return null;
+  for (var i = 0; i < node.children.length; i++) {
+    if (node.children[i].name === name) return node.children[i];
+  }
+  return null;
+}
 
-  for (const op of patch.operations || []) {
+async function applyPatch(patch) {
+  var node = await ensureCardNode(activeProjectId, patch.card_id);
+  var targetWidth = null;
+  var targetHeight = null;
+  var colorScheme = null;
+  var liquidGlass = null;
+  var title = null;
+  var subtitle = null;
+  var fontFamily = null;
+  var fontSize = null;
+  var cornerRadius = null;
+
+  for (var i = 0; i < (patch.operations || []).length; i++) {
+    var op = patch.operations[i];
     if (op.path === "/width") targetWidth = Number(op.value);
     if (op.path === "/height") targetHeight = Number(op.value);
     if (op.path === "/color_scheme") colorScheme = String(op.value);
     if (op.path === "/liquid_glass") liquidGlass = Boolean(op.value);
+    if (op.path === "/title") title = String(op.value);
+    if (op.path === "/subtitle") subtitle = String(op.value);
+    if (op.path === "/font_family") fontFamily = String(op.value);
+    if (op.path === "/font_size") fontSize = Number(op.value);
+    if (op.path === "/corner_radius") cornerRadius = Number(op.value);
   }
 
-  if (targetWidth != null || targetHeight != null) {
-    const width = clamp(targetWidth !== null ? targetWidth : node.width, 120, 1200);
-    const height = clamp(targetHeight !== null ? targetHeight : node.height, 120, 1200);
+  if (targetWidth != null) {
+    var width = clamp(targetWidth, 120, 1200);
     if ("resize" in node) {
-      node.resize(width, height);
+      node.resize(width, node.height);
     }
+  }
+  if (cornerRadius != null) {
+    node.cornerRadius = clamp(cornerRadius, 0, 128);
   }
   if (colorScheme) {
     applyColorScheme(node, colorScheme);
+    var tn = findChildByName(node, "title");
+    if (tn && tn.type === "TEXT") {
+      tn.fills = [{ type: "SOLID", color: textColorForScheme(colorScheme) }];
+    }
+    var sn = findChildByName(node, "subtitle");
+    if (sn && sn.type === "TEXT") {
+      sn.fills = [{ type: "SOLID", color: textColorForScheme(colorScheme) }];
+    }
   }
   if (liquidGlass != null) {
     applyLiquidGlass(node, liquidGlass);
+  }
+
+  if (title != null || subtitle != null || fontFamily != null || fontSize != null) {
+    var font = fontFamily || "Inter";
+    try {
+      await figma.loadFontAsync({ family: font, style: "Regular" });
+    } catch (e) {
+      await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+      font = "Inter";
+    }
+
+    var titleFontSize = fontSize ? clamp(fontSize, 8, 96) : null;
+    var subtitleFontSize = titleFontSize ? Math.max(8, Math.round(titleFontSize * 0.58)) : null;
+
+    var textWidth = Math.max(100, node.width - 48);
+
+    var titleNode = findChildByName(node, "title");
+    if (titleNode && titleNode.type === "TEXT") {
+      titleNode.fontName = { family: font, style: "Regular" };
+      if (titleFontSize) titleNode.fontSize = titleFontSize;
+      if (title != null) titleNode.characters = title;
+      titleNode.textAutoResize = "HEIGHT";
+      titleNode.resize(textWidth, titleNode.height);
+    }
+    var subtitleNode = findChildByName(node, "subtitle");
+    if (subtitleNode && subtitleNode.type === "TEXT") {
+      subtitleNode.fontName = { family: font, style: "Regular" };
+      if (subtitleFontSize) subtitleNode.fontSize = subtitleFontSize;
+      if (subtitle != null) subtitleNode.characters = subtitle || " ";
+      subtitleNode.textAutoResize = "HEIGHT";
+      subtitleNode.resize(textWidth, subtitleNode.height);
+    }
   }
 
   figma.currentPage.selection = [node];

@@ -4,7 +4,6 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
-from app.models.card import ColorScheme
 from app.models.card_spec import CardSpec, RGBColor
 
 
@@ -68,17 +67,17 @@ def _luma(rgb: tuple[int, int, int]) -> float:
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
-def _nearest_scheme(rgb: tuple[int, int, int]) -> ColorScheme:
+def _nearest_scheme(rgb: tuple[int, int, int]) -> str:
     r, g, b = rgb
     if _luma(rgb) > 200:
-        return "light"
+        return "bright"
     if _luma(rgb) < 55:
         return "dark"
     if b >= r and b >= g:
-        return "blue"
-    if g >= r and g >= b:
-        return "green"
-    return "purple"
+        return "cool"
+    if r > g and r > b:
+        return "warm"
+    return "soft"
 
 
 def _default_text_rgb(background: tuple[int, int, int]) -> tuple[int, int, int]:
@@ -98,6 +97,7 @@ def extract_card_spec_from_page_snapshot(
     frame_candidates: list[_CandidateFrame] = []
     fill_counter: Counter[tuple[int, int, int]] = Counter()
     text_counter: Counter[tuple[str, int]] = Counter()
+    text_contents: list[tuple[str, int]] = []
 
     for node in all_nodes:
         node_type = str(node.get("type", ""))
@@ -122,15 +122,22 @@ def extract_card_spec_from_page_snapshot(
             )
 
         if node_type == "TEXT":
-            style = node.get("style", {})
-            family = str(style.get("fontFamily", "")).strip() or "Inter"
-            size_raw = style.get("fontSize", 16)
+            font_name = node.get("fontName")
+            if isinstance(font_name, dict):
+                family = str(font_name.get("family", "")).strip() or "Inter"
+            else:
+                style = node.get("style", {})
+                family = str(style.get("fontFamily", "")).strip() or "Inter"
+            size_raw = node.get("fontSize", 16)
             try:
                 size = int(round(float(size_raw)))
             except (TypeError, ValueError):
                 size = 16
             size = max(8, min(96, size))
             text_counter[(family, size)] += 1
+            chars = str(node.get("characters", "")).strip()
+            if chars:
+                text_contents.append((chars, size))
 
     # Pick a likely "card" candidate: medium-ish frame with strong area.
     card_candidate = None
@@ -167,6 +174,10 @@ def extract_card_spec_from_page_snapshot(
     else:
         font_family, font_size = ("Inter", 24)
 
+    text_contents.sort(key=lambda t: t[1], reverse=True)
+    title = text_contents[0][0] if len(text_contents) > 0 else "Untitled Card"
+    subtitle = text_contents[1][0] if len(text_contents) > 1 else ""
+
     return CardSpec(
         project_id=project_id,
         card_id=card_id,
@@ -181,4 +192,6 @@ def extract_card_spec_from_page_snapshot(
         font_family=font_family,
         font_size=font_size,
         corner_radius=corner_radius,
+        title=title,
+        subtitle=subtitle,
     )
