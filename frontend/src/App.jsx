@@ -217,6 +217,8 @@ export default function App() {
       });
       setFrameVisible(true);
       setFrameMode('generated');
+      setBreakpoint('mobile');
+      setFramePos(null);
 
       const backendScheme = String(fs.color_scheme || 'dark').toLowerCase();
       const frontendSchemeId = BACKEND_TO_FRONTEND_SCHEME[backendScheme] || 'midnight';
