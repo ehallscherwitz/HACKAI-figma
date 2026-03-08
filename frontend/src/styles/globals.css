@@ -315,7 +315,7 @@ body {
 .logo {
   font-family: 'Coolvetica', 'Bebas Neue', sans-serif;
   font-size: 28px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.9);
   font-weight: 400;
 }
@@ -560,7 +560,7 @@ body {
   font-size: 11px;
   letter-spacing: 0.22em;
   text-transform: lowercase;
-  color: rgba(45, 55, 75, 0.55);
+  color: #000;
 }
 
 #load-bar {
@@ -608,8 +608,8 @@ body {
 
 .ascii-wordmark {
   font-family: 'Coolvetica', 'Bebas Neue', sans-serif;
-  font-size: clamp(68px, 11vw, 132px);
-  letter-spacing: 0.06em;
+  font-size: clamp(80px, 13vw, 160px);
+  letter-spacing: 0.02em;
   color: transparent;
   font-weight: 400;
   line-height: 1;
@@ -649,7 +649,6 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-stroke: 0;
-  mix-blend-mode: overlay;
   pointer-events: none;
 }
 
@@ -658,11 +657,11 @@ body {
   font-size: clamp(18px, 2.7vw, 28px);
   font-weight: 500;
   font-style: italic;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.20em;
   color: #fff;
   -webkit-text-stroke: 1.5px #000;
   paint-order: stroke fill;
-  margin-top: 8px;
+  margin-top: 6px;
   position: relative;
   z-index: 2;
 }
@@ -688,7 +687,7 @@ body {
   font-weight: 500;
   letter-spacing: 0.22em;
   text-transform: lowercase;
-  color: rgba(45, 55, 75, 0.55);
+  color: #000;
   text-align: center;
   position: relative;
   z-index: 2;
