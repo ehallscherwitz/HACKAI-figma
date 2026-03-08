@@ -53,6 +53,7 @@ function resolveOverridesToCss(overrides) {
 
 export default function DesignFrame({
   breakpoint, styles, componentStyles,
+  pulledContent,
   selectedComponent, onSelectComponent,
   framePos, dragging,
 }) {
@@ -119,6 +120,7 @@ export default function DesignFrame({
           colorScheme={s.colorScheme && s.colorScheme.bg ? s.colorScheme : COLOR_SCHEMES[0]}
           effects={s.effects || []}
           heroLayout={s.heroLayout || 'side-by-side'}
+          pulledContent={pulledContent}
           padding={padding}
           sectionGap={sectionGap}
           elementGap={elementGap}
@@ -141,7 +143,7 @@ function compStyle(componentStyles, id) {
 }
 
 function FrameContent({
-  colorScheme, effects, heroLayout, padding, sectionGap, elementGap,
+  colorScheme, effects, heroLayout, pulledContent, padding, sectionGap, elementGap,
   contentWidth, alignment, borderRadius, hasEffect,
   selectedComponent, onSelectComponent, componentStyles,
 }) {
@@ -159,6 +161,14 @@ function FrameContent({
 
   const isStacked = heroLayout === 'stacked';
   const isCentered = heroLayout === 'centered';
+  const content = {
+    brand: pulledContent?.name || 'tactile',
+    eyebrow: pulledContent?.eyebrow || 'Design System',
+    title: pulledContent?.title || 'Give your design soul',
+    subtitle: pulledContent?.subtitle || 'Transform your ideas into meaningful products without technical barriers.',
+    ctaText: pulledContent?.ctaText || 'Start Building with Tactile',
+    metaText: pulledContent?.metaText || 'Design meets impact',
+  };
 
   return (
     <div
@@ -180,7 +190,7 @@ function FrameContent({
           ...cs2('nav'),
         }}
       >
-        <div className="fc-nav-logo" style={cs2('nav-logo')}>tactile</div>
+        <div className="fc-nav-logo" style={cs2('nav-logo')}>{content.brand}</div>
         <div className="fc-nav-links">
           <span>Examples</span>
           <span>Docs</span>
@@ -222,22 +232,33 @@ function FrameContent({
         }}
       >
         <div className="fc-hero-left" style={isCentered ? { maxWidth: '600px', alignItems: 'center' } : {}}>
+          <div
+            className={`fc-eyebrow${sel('eyebrow')}`}
+            onClick={click('eyebrow')}
+            style={{
+              fontSize: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              opacity: 0.72,
+              marginBottom: '10px',
+              ...cs2('eyebrow'),
+            }}
+          >
+            {content.eyebrow}
+          </div>
           <h1
             className={`fc-heading${sel('heading')}`}
             onClick={click('heading')}
             style={cs2('heading')}
           >
-            Give your design{' '}
-            <span style={{ color: cs.primary }}> soul</span>
+            {content.title}
           </h1>
           <p
             className={`fc-body${sel('body')}`}
             onClick={click('body')}
             style={cs2('body')}
           >
-            Transform your ideas into meaningful products without technical barriers.
-            Describe your vision with human words like &ldquo;warm&rdquo; or &ldquo;approachable&rdquo;
-            &mdash; we&rsquo;ll create soulful interfaces that feel intentional, not cheap.
+            {content.subtitle}
           </p>
           <div className="fc-cta-row" style={{ gap: elementGap.value, ...(isCentered ? { justifyContent: 'center' } : {}) }}>
             <button
@@ -257,7 +278,7 @@ function FrameContent({
                 ...cs2('btn-cta'),
               }}
             >
-              Start Building with Tactile
+              {content.ctaText}
             </button>
             <div className="fc-social-proof">
               <div className="fc-avatar-stack">
@@ -265,7 +286,7 @@ function FrameContent({
                 <div className="fc-avatar" style={{ background: cs.primary, opacity: 0.5, borderRadius: borderRadius.value === '0' ? '4px' : '50%' }} />
                 <div className="fc-avatar" style={{ background: cs.primary, opacity: 0.3, borderRadius: borderRadius.value === '0' ? '4px' : '50%' }} />
               </div>
-              <span className="fc-social-text">Design meets impact</span>
+              <span className="fc-social-text">{content.metaText}</span>
             </div>
           </div>
         </div>

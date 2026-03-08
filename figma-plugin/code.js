@@ -61,6 +61,56 @@ function contrastTextForColor(c) {
   return colorLuma(c) > 0.55 ? rgb(15, 15, 15) : rgb(250, 250, 250);
 }
 
+function fontStyleForWeight(weight) {
+  var w = Number(weight || 400);
+  if (w >= 700) return "Bold";
+  if (w >= 600) return "Semi Bold";
+  return "Regular";
+}
+
+function textCaseForTransform(transform) {
+  var t = String(transform || "none").toLowerCase();
+  if (t === "uppercase") return "UPPER";
+  if (t === "lowercase") return "LOWER";
+  if (t === "capitalize") return "TITLE";
+  return "ORIGINAL";
+}
+
+function shadowEffectsForStyle(styleId) {
+  var id = String(styleId || "none").toLowerCase();
+  if (id === "sm") {
+    return [{
+      type: "DROP_SHADOW", visible: true, blendMode: "NORMAL",
+      color: { r: 0, g: 0, b: 0, a: 0.10 }, offset: { x: 0, y: 1 }, radius: 3, spread: 0
+    }];
+  }
+  if (id === "md") {
+    return [{
+      type: "DROP_SHADOW", visible: true, blendMode: "NORMAL",
+      color: { r: 0, g: 0, b: 0, a: 0.12 }, offset: { x: 0, y: 4 }, radius: 16, spread: 0
+    }];
+  }
+  if (id === "lg") {
+    return [{
+      type: "DROP_SHADOW", visible: true, blendMode: "NORMAL",
+      color: { r: 0, g: 0, b: 0, a: 0.15 }, offset: { x: 0, y: 8 }, radius: 32, spread: 0
+    }];
+  }
+  if (id === "xl") {
+    return [{
+      type: "DROP_SHADOW", visible: true, blendMode: "NORMAL",
+      color: { r: 0, g: 0, b: 0, a: 0.17 }, offset: { x: 0, y: 16 }, radius: 48, spread: 0
+    }];
+  }
+  if (id === "inner") {
+    return [{
+      type: "INNER_SHADOW", visible: true, blendMode: "NORMAL",
+      color: { r: 0, g: 0, b: 0, a: 0.10 }, offset: { x: 0, y: 2 }, radius: 8, spread: 0
+    }];
+  }
+  return [];
+}
+
 function getCurrentContext() {
   const selected = figma.currentPage.selection[0] || null;
   return {
@@ -420,6 +470,16 @@ async function applyPatch(patch) {
   var fontFamily = null;
   var fontSize = null;
   var cornerRadius = null;
+  var fontWeight = null;
+  var lineHeight = null;
+  var letterSpacingEm = null;
+  var textTransform = null;
+  var textOpacity = null;
+  var borderWidth = null;
+  var shadowStyle = null;
+  var padding = null;
+  var sectionGap = null;
+  var elementGap = null;
   var fillRgb = null;
   var textRgb = null;
   var accentRgb = null;
@@ -439,6 +499,16 @@ async function applyPatch(patch) {
     if (op.path === "/font_family") fontFamily = String(op.value);
     if (op.path === "/font_size") fontSize = Number(op.value);
     if (op.path === "/corner_radius") cornerRadius = Number(op.value);
+    if (op.path === "/font_weight") fontWeight = Number(op.value);
+    if (op.path === "/line_height") lineHeight = Number(op.value);
+    if (op.path === "/letter_spacing_em") letterSpacingEm = Number(op.value);
+    if (op.path === "/text_transform") textTransform = String(op.value);
+    if (op.path === "/text_opacity") textOpacity = Number(op.value);
+    if (op.path === "/border_width") borderWidth = Number(op.value);
+    if (op.path === "/shadow_style") shadowStyle = String(op.value);
+    if (op.path === "/padding") padding = Number(op.value);
+    if (op.path === "/section_gap") sectionGap = Number(op.value);
+    if (op.path === "/element_gap") elementGap = Number(op.value);
     if (op.path === "/fill_rgb") fillRgb = op.value;
     if (op.path === "/text_rgb") textRgb = op.value;
     if (op.path === "/accent_rgb") accentRgb = op.value;
@@ -450,15 +520,35 @@ async function applyPatch(patch) {
 
   await ensureRichCardChildren(node, colorScheme);
 
-  if (targetWidth != null) {
-    var width = clamp(targetWidth, 120, 1200);
+  if (targetWidth != null || targetHeight != null) {
+    var width = targetWidth != null ? clamp(targetWidth, 120, 2000) : node.width;
+    var height = targetHeight != null ? clamp(targetHeight, 120, 2000) : node.height;
     if ("resize" in node) {
-      node.resize(width, node.height);
+      if ("primaryAxisSizingMode" in node && targetHeight != null) {
+        node.primaryAxisSizingMode = "FIXED";
+      }
+      node.resize(width, height);
     }
   }
 
   if (cornerRadius != null) {
     node.cornerRadius = clamp(cornerRadius, 0, 128);
+  }
+  if (borderWidth != null && "strokeWeight" in node) {
+    node.strokeWeight = clamp(borderWidth, 0, 8);
+    if (node.strokeWeight <= 0) node.strokes = [];
+  }
+  if (padding != null) {
+    var p = clamp(padding, 0, 120);
+    if ("paddingLeft" in node) {
+      node.paddingLeft = p;
+      node.paddingRight = p;
+      node.paddingTop = p;
+      node.paddingBottom = p;
+    }
+  }
+  if (sectionGap != null && "itemSpacing" in node) {
+    node.itemSpacing = clamp(sectionGap, 0, 120);
   }
 
   if (fillRgb && typeof fillRgb === "object") {
@@ -538,44 +628,66 @@ async function applyPatch(patch) {
 
   if (liquidGlass != null) {
     applyLiquidGlass(node, liquidGlass);
+  } else if (shadowStyle != null && "effects" in node) {
+    node.effects = shadowEffectsForStyle(shadowStyle);
   }
 
   if (
     title != null || subtitle != null || fontFamily != null || fontSize != null ||
-    eyebrow != null || ctaText != null || metaText != null
+    eyebrow != null || ctaText != null || metaText != null ||
+    fontWeight != null || lineHeight != null || letterSpacingEm != null ||
+    textTransform != null || textOpacity != null
   ) {
     var font = fontFamily || "Inter";
+    var fontStyle = fontStyleForWeight(fontWeight);
     try {
-      await figma.loadFontAsync({ family: font, style: "Regular" });
+      await figma.loadFontAsync({ family: font, style: fontStyle });
     } catch (e) {
       await figma.loadFontAsync({ family: "Inter", style: "Regular" });
       font = "Inter";
+      fontStyle = "Regular";
     }
 
     var titleFontSize = fontSize ? clamp(fontSize, 8, 96) : null;
     var subtitleFontSize = titleFontSize ? Math.max(8, Math.round(titleFontSize * 0.58)) : null;
+    var lineHeightPct = lineHeight ? clamp(Math.round(lineHeight * 100), 80, 250) : null;
+    var letterSpacingPct = Number.isFinite(letterSpacingEm) ? clamp(letterSpacingEm * 100, -20, 40) : null;
+    var textCase = textCaseForTransform(textTransform);
+    var txtOpacity = Number.isFinite(textOpacity) ? Math.max(0.1, Math.min(1, textOpacity)) : null;
 
     var textWidth = Math.max(100, node.width - 48);
 
     var titleNode = findChildByName(node, "title");
     var eyebrowNode = findChildByName(node, "eyebrow");
     if (titleNode && titleNode.type === "TEXT") {
-      titleNode.fontName = { family: font, style: "Regular" };
+      titleNode.fontName = { family: font, style: fontStyle };
       if (titleFontSize) titleNode.fontSize = titleFontSize;
+      if (lineHeightPct) titleNode.lineHeight = { value: lineHeightPct, unit: "PERCENT" };
+      if (letterSpacingPct != null) titleNode.letterSpacing = { value: letterSpacingPct, unit: "PERCENT" };
+      if (textCase) titleNode.textCase = textCase;
+      if (txtOpacity != null) titleNode.opacity = txtOpacity;
       if (title != null) titleNode.characters = title;
       titleNode.textAutoResize = "HEIGHT";
       titleNode.resize(textWidth, titleNode.height);
     }
     if (eyebrowNode && eyebrowNode.type === "TEXT") {
-      eyebrowNode.fontName = { family: font, style: "Regular" };
+      eyebrowNode.fontName = { family: font, style: fontStyle };
+      if (lineHeightPct) eyebrowNode.lineHeight = { value: lineHeightPct, unit: "PERCENT" };
+      if (letterSpacingPct != null) eyebrowNode.letterSpacing = { value: letterSpacingPct, unit: "PERCENT" };
+      if (textCase) eyebrowNode.textCase = textCase;
+      if (txtOpacity != null) eyebrowNode.opacity = txtOpacity;
       if (eyebrow != null) eyebrowNode.characters = eyebrow;
       eyebrowNode.textAutoResize = "HEIGHT";
       eyebrowNode.resize(textWidth, eyebrowNode.height);
     }
     var subtitleNode = findChildByName(node, "subtitle");
     if (subtitleNode && subtitleNode.type === "TEXT") {
-      subtitleNode.fontName = { family: font, style: "Regular" };
+      subtitleNode.fontName = { family: font, style: fontStyle };
       if (subtitleFontSize) subtitleNode.fontSize = subtitleFontSize;
+      if (lineHeightPct) subtitleNode.lineHeight = { value: lineHeightPct, unit: "PERCENT" };
+      if (letterSpacingPct != null) subtitleNode.letterSpacing = { value: letterSpacingPct, unit: "PERCENT" };
+      if (textCase) subtitleNode.textCase = textCase;
+      if (txtOpacity != null) subtitleNode.opacity = txtOpacity;
       if (subtitle != null) subtitleNode.characters = subtitle || " ";
       subtitleNode.textAutoResize = "HEIGHT";
       subtitleNode.resize(textWidth, subtitleNode.height);
@@ -585,14 +697,23 @@ async function applyPatch(patch) {
     if (ctaNode && ctaNode.type === "FRAME") {
       var ctaLabelNode = findChildByName(ctaNode, "cta_text");
       if (ctaLabelNode && ctaLabelNode.type === "TEXT") {
-        ctaLabelNode.fontName = { family: font, style: "Regular" };
+        ctaLabelNode.fontName = { family: font, style: fontStyle };
+        if (textCase) ctaLabelNode.textCase = textCase;
+        if (txtOpacity != null) ctaLabelNode.opacity = txtOpacity;
         if (ctaText != null) ctaLabelNode.characters = ctaText || "Start Building";
+      }
+      if (elementGap != null && "itemSpacing" in ctaNode) {
+        ctaNode.itemSpacing = clamp(elementGap, 0, 120);
       }
     }
 
     var metaNode = findChildByName(node, "meta");
     if (metaNode && metaNode.type === "TEXT") {
-      metaNode.fontName = { family: font, style: "Regular" };
+      metaNode.fontName = { family: font, style: fontStyle };
+      if (lineHeightPct) metaNode.lineHeight = { value: lineHeightPct, unit: "PERCENT" };
+      if (letterSpacingPct != null) metaNode.letterSpacing = { value: letterSpacingPct, unit: "PERCENT" };
+      if (textCase) metaNode.textCase = textCase;
+      if (txtOpacity != null) metaNode.opacity = txtOpacity;
       if (metaText != null) metaNode.characters = metaText;
       metaNode.textAutoResize = "HEIGHT";
       metaNode.resize(textWidth, metaNode.height);

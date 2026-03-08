@@ -874,6 +874,58 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.generated-frame {
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.generated-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.generated-title {
+  margin: 0;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  max-width: 18ch;
+}
+
+.generated-subtitle {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+  opacity: 0.86;
+  max-width: 52ch;
+}
+
+.generated-cta-row {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.generated-cta {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.generated-meta {
+  font-size: 12px;
+  opacity: 0.74;
+}
+
 /* ── Status bar ────────────────────────────────────── */
 
 #statusbar {
