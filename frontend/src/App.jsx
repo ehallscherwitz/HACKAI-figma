@@ -69,7 +69,7 @@ export default function App() {
 
   return (
     <>
-      <AsciiCloudHome visible={homeScreen} handLandmarks={handLandmarks} />
+      <AsciiCloudHome visible={homeScreen} loading={loading} handLandmarks={handLandmarks} />
       <LoadingScreen pct={loadPct} text={loadText} visible={loading} />
 
       <video ref={videoRef} id="video" autoPlay playsInline muted style={{ opacity: homeScreen ? 0 : 0.35 }} />
