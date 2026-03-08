@@ -54,8 +54,53 @@ function publishContextToUi() {
   figma.ui.postMessage(getCurrentContext());
 }
 
+function safeProp(node, key) {
+  try {
+    var val = node[key];
+    if (typeof val === "symbol") return undefined;
+    return val;
+  } catch (e) {
+    return undefined;
+  }
+}
+
+function safeClone(val) {
+  if (val === undefined || val === null || typeof val === "symbol") return undefined;
+  try { return JSON.parse(JSON.stringify(val)); } catch (e) { return undefined; }
+}
+
+function nodeToJson(node, depth) {
+  if (depth === undefined) depth = 0;
+  if (depth > 10) return { id: node.id, name: node.name, type: node.type };
+  var obj = {
+    id: node.id,
+    name: node.name,
+    type: node.type
+  };
+  var num = function (k) { var v = safeProp(node, k); if (typeof v === "number") obj[k] = v; };
+  var bool = function (k) { var v = safeProp(node, k); if (typeof v === "boolean") obj[k] = v; };
+  var str = function (k) { var v = safeProp(node, k); if (typeof v === "string") obj[k] = v; };
+  var clone = function (k) { var v = safeClone(safeProp(node, k)); if (v !== undefined) obj[k] = v; };
+
+  num("width"); num("height"); num("x"); num("y");
+  num("cornerRadius"); num("opacity"); num("fontSize");
+  num("strokeWeight");
+  bool("visible");
+  str("characters");
+  clone("fills"); clone("strokes"); clone("effects"); clone("fontName");
+
+  if ("children" in node && node.children) {
+    obj.children = [];
+    for (var i = 0; i < node.children.length; i++) {
+      obj.children.push(nodeToJson(node.children[i], depth + 1));
+    }
+  }
+  return obj;
+}
+
 function publishPageSnapshotToUi() {
-  const context = getCurrentContext();
+  var context = getCurrentContext();
+  var pageJson = nodeToJson(figma.currentPage, 0);
   figma.ui.postMessage({
     type: "plugin-page-snapshot",
     projectId: context.projectId,
@@ -63,7 +108,7 @@ function publishPageSnapshotToUi() {
     pageId: context.pageId,
     nodeId: context.nodeId,
     capturedAt: new Date().toISOString(),
-    pageJson: figma.currentPage.toJSON()
+    pageJson: pageJson
   });
 }
 
