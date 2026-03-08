@@ -61,8 +61,8 @@ looks native to this project (not a placeholder/generic component).
 Valid paths and value types:
 - /name          – string, a descriptive frame name
 - /eyebrow       – string, short overline/label above title
-- /width         – int 120-1200
-- /height        – int 120-1200
+- /width         – int 120-2000
+- /height        – int 120-2000
 - /fill_rgb      – {r,g,b} each 0-255 (background color, overrides color_scheme)
 - /text_rgb      – {r,g,b} each 0-255 (label text color)
 - /accent_rgb    – {r,g,b} each 0-255 (CTA/button accent color)
@@ -105,7 +105,7 @@ Rules:
 - Output ONLY valid JSON object for CardPatch (no markdown).
 - Include all relevant operations so frame is fully defined.
 - Keep values in valid ranges:
-  - width/height: 120-1200
+  - width/height: 120-2000
   - corner_radius: 0-128
   - font_size: 8-96
 """
@@ -138,6 +138,16 @@ PLUGIN_SUPPORTED_PATHS = {
     "/corner_radius",
     "/font_family",
     "/font_size",
+    "/font_weight",
+    "/line_height",
+    "/letter_spacing_em",
+    "/text_transform",
+    "/text_opacity",
+    "/border_width",
+    "/shadow_style",
+    "/padding",
+    "/section_gap",
+    "/element_gap",
     "/title",
     "/subtitle",
     "/cta_text",
@@ -157,6 +167,16 @@ PLUGIN_OPERATION_ORDER = [
     "/corner_radius",
     "/font_family",
     "/font_size",
+    "/font_weight",
+    "/line_height",
+    "/letter_spacing_em",
+    "/text_transform",
+    "/text_opacity",
+    "/border_width",
+    "/shadow_style",
+    "/padding",
+    "/section_gap",
+    "/element_gap",
     "/title",
     "/subtitle",
     "/cta_text",
@@ -176,6 +196,16 @@ PLUGIN_DEFAULTS: dict[str, Any] = {
     "/corner_radius": 20,
     "/font_family": "Inter",
     "/font_size": 24,
+    "/font_weight": 400,
+    "/line_height": 1.5,
+    "/letter_spacing_em": 0.0,
+    "/text_transform": "none",
+    "/text_opacity": 1.0,
+    "/border_width": 1,
+    "/shadow_style": "none",
+    "/padding": 24,
+    "/section_gap": 16,
+    "/element_gap": 16,
     "/title": "Give your design soul",
     "/subtitle": "Shape polished interfaces through natural gestures and live feedback.",
     "/cta_text": "Start Building with Tactile",
@@ -299,13 +329,48 @@ def _normalize_path_value(path: str, value: Any) -> Any:
     if path in {"/name", "/eyebrow", "/font_family", "/title", "/subtitle", "/cta_text", "/meta_text"}:
         return str(value or PLUGIN_DEFAULTS[path]).strip() or PLUGIN_DEFAULTS[path]
     if path == "/width":
-        return _int_in_range(value, 120, 1200, int(PLUGIN_DEFAULTS[path]))
+        return _int_in_range(value, 120, 2000, int(PLUGIN_DEFAULTS[path]))
     if path == "/height":
-        return _int_in_range(value, 120, 1200, int(PLUGIN_DEFAULTS[path]))
+        return _int_in_range(value, 120, 2000, int(PLUGIN_DEFAULTS[path]))
     if path == "/corner_radius":
         return _int_in_range(value, 0, 128, int(PLUGIN_DEFAULTS[path]))
     if path == "/font_size":
         return _int_in_range(value, 8, 96, int(PLUGIN_DEFAULTS[path]))
+    if path == "/font_weight":
+        return _int_in_range(value, 300, 800, int(PLUGIN_DEFAULTS[path]))
+    if path == "/line_height":
+        try:
+            return max(1.0, min(2.5, float(value)))
+        except Exception:
+            return float(PLUGIN_DEFAULTS[path])
+    if path == "/letter_spacing_em":
+        try:
+            return max(-0.1, min(0.3, float(value)))
+        except Exception:
+            return float(PLUGIN_DEFAULTS[path])
+    if path == "/text_transform":
+        t = str(value or PLUGIN_DEFAULTS[path]).strip().lower()
+        if t not in {"none", "uppercase", "lowercase", "capitalize"}:
+            return PLUGIN_DEFAULTS[path]
+        return t
+    if path == "/text_opacity":
+        try:
+            return max(0.1, min(1.0, float(value)))
+        except Exception:
+            return float(PLUGIN_DEFAULTS[path])
+    if path == "/border_width":
+        return _int_in_range(value, 0, 8, int(PLUGIN_DEFAULTS[path]))
+    if path == "/shadow_style":
+        s = str(value or PLUGIN_DEFAULTS[path]).strip().lower()
+        if s not in {"none", "sm", "md", "lg", "xl", "inner"}:
+            return PLUGIN_DEFAULTS[path]
+        return s
+    if path == "/padding":
+        return _int_in_range(value, 0, 120, int(PLUGIN_DEFAULTS[path]))
+    if path == "/section_gap":
+        return _int_in_range(value, 0, 120, int(PLUGIN_DEFAULTS[path]))
+    if path == "/element_gap":
+        return _int_in_range(value, 0, 120, int(PLUGIN_DEFAULTS[path]))
     if path in {"/fill_rgb", "/text_rgb", "/accent_rgb"}:
         return _normalize_rgb_value(value, PLUGIN_DEFAULTS[path])
     if path == "/color_scheme":
@@ -525,6 +590,52 @@ def _set_operation_value(operations: list[dict[str, Any]], path: str, value: Any
     operations.append({"op": "replace", "path": path, "value": value})
 
 
+def _apply_frontend_state_overrides(
+    patch: dict[str, Any], final_frame_state: dict[str, Any]
+) -> dict[str, Any]:
+    """Use frontend frame state as authoritative values for supported paths."""
+    if not isinstance(final_frame_state, dict):
+        return patch
+    operations = patch.get("operations", [])
+    if not isinstance(operations, list):
+        operations = []
+
+    path_by_key = {
+        "name": "/name",
+        "eyebrow": "/eyebrow",
+        "width": "/width",
+        "height": "/height",
+        "fill_rgb": "/fill_rgb",
+        "text_rgb": "/text_rgb",
+        "accent_rgb": "/accent_rgb",
+        "corner_radius": "/corner_radius",
+        "font_family": "/font_family",
+        "font_size": "/font_size",
+        "font_weight": "/font_weight",
+        "line_height": "/line_height",
+        "letter_spacing_em": "/letter_spacing_em",
+        "text_transform": "/text_transform",
+        "text_opacity": "/text_opacity",
+        "border_width": "/border_width",
+        "shadow_style": "/shadow_style",
+        "padding": "/padding",
+        "section_gap": "/section_gap",
+        "element_gap": "/element_gap",
+        "title": "/title",
+        "subtitle": "/subtitle",
+        "cta_text": "/cta_text",
+        "meta_text": "/meta_text",
+        "color_scheme": "/color_scheme",
+        "liquid_glass": "/liquid_glass",
+    }
+    for key, path in path_by_key.items():
+        if key in final_frame_state:
+            _set_operation_value(operations, path, final_frame_state[key])
+
+    patch["operations"] = _sanitize_plugin_operations(operations)
+    return patch
+
+
 def _get_operation_value(operations: list[dict[str, Any]], path: str) -> Any:
     for op in operations:
         if isinstance(op, dict) and str(op.get("path")) == path:
@@ -652,8 +763,8 @@ def render_frontend_card_html(patch: dict[str, Any]) -> dict[str, Any]:
 
     width = int(_op_value(operations, "/width", 360))
     height = int(_op_value(operations, "/height", 220))
-    width = max(240, min(1200, width))
-    height = max(140, min(1200, height))
+    width = max(240, min(2000, width))
+    height = max(140, min(2000, height))
 
     corner = int(_op_value(operations, "/corner_radius", 20))
     corner = max(0, min(128, corner))
@@ -768,6 +879,48 @@ def render_frontend_card_html(patch: dict[str, Any]) -> dict[str, Any]:
             "text_color": text_color,
             "color_scheme": color_scheme,
         },
+    }
+
+
+def patch_to_frame_state(patch: dict[str, Any]) -> dict[str, Any]:
+    """Extract canonical frontend frame state from a plugin patch."""
+    operations = patch.get("operations", [])
+    return {
+        "name": str(_op_value(operations, "/name", PLUGIN_DEFAULTS["/name"])),
+        "eyebrow": str(_op_value(operations, "/eyebrow", PLUGIN_DEFAULTS["/eyebrow"])),
+        "width": int(_op_value(operations, "/width", PLUGIN_DEFAULTS["/width"])),
+        "height": int(_op_value(operations, "/height", PLUGIN_DEFAULTS["/height"])),
+        "fill_rgb": _normalize_rgb_value(
+            _op_value(operations, "/fill_rgb", PLUGIN_DEFAULTS["/fill_rgb"]),
+            PLUGIN_DEFAULTS["/fill_rgb"],
+        ),
+        "text_rgb": _normalize_rgb_value(
+            _op_value(operations, "/text_rgb", PLUGIN_DEFAULTS["/text_rgb"]),
+            PLUGIN_DEFAULTS["/text_rgb"],
+        ),
+        "accent_rgb": _normalize_rgb_value(
+            _op_value(operations, "/accent_rgb", PLUGIN_DEFAULTS["/accent_rgb"]),
+            PLUGIN_DEFAULTS["/accent_rgb"],
+        ),
+        "corner_radius": int(_op_value(operations, "/corner_radius", PLUGIN_DEFAULTS["/corner_radius"])),
+        "font_family": str(_op_value(operations, "/font_family", PLUGIN_DEFAULTS["/font_family"])),
+        "font_size": int(_op_value(operations, "/font_size", PLUGIN_DEFAULTS["/font_size"])),
+        "font_weight": int(_op_value(operations, "/font_weight", PLUGIN_DEFAULTS["/font_weight"])),
+        "line_height": float(_op_value(operations, "/line_height", PLUGIN_DEFAULTS["/line_height"])),
+        "letter_spacing_em": float(_op_value(operations, "/letter_spacing_em", PLUGIN_DEFAULTS["/letter_spacing_em"])),
+        "text_transform": str(_op_value(operations, "/text_transform", PLUGIN_DEFAULTS["/text_transform"])),
+        "text_opacity": float(_op_value(operations, "/text_opacity", PLUGIN_DEFAULTS["/text_opacity"])),
+        "border_width": int(_op_value(operations, "/border_width", PLUGIN_DEFAULTS["/border_width"])),
+        "shadow_style": str(_op_value(operations, "/shadow_style", PLUGIN_DEFAULTS["/shadow_style"])),
+        "padding": int(_op_value(operations, "/padding", PLUGIN_DEFAULTS["/padding"])),
+        "section_gap": int(_op_value(operations, "/section_gap", PLUGIN_DEFAULTS["/section_gap"])),
+        "element_gap": int(_op_value(operations, "/element_gap", PLUGIN_DEFAULTS["/element_gap"])),
+        "title": str(_op_value(operations, "/title", PLUGIN_DEFAULTS["/title"])),
+        "subtitle": str(_op_value(operations, "/subtitle", PLUGIN_DEFAULTS["/subtitle"])),
+        "cta_text": str(_op_value(operations, "/cta_text", PLUGIN_DEFAULTS["/cta_text"])),
+        "meta_text": str(_op_value(operations, "/meta_text", PLUGIN_DEFAULTS["/meta_text"])),
+        "color_scheme": str(_op_value(operations, "/color_scheme", PLUGIN_DEFAULTS["/color_scheme"])),
+        "liquid_glass": bool(_op_value(operations, "/liquid_glass", PLUGIN_DEFAULTS["/liquid_glass"])),
     }
 
 
@@ -972,4 +1125,5 @@ async def generate_reconciled_patch(
         card_id=card_id,
         event_id=event_id,
     )
-    return _enforce_patch_quality(patch, page_json=page_json)
+    patch = _enforce_patch_quality(patch, page_json=page_json)
+    return _apply_frontend_state_overrides(patch, final_frame_state)

@@ -812,6 +812,33 @@ body {
   align-items: center;
 }
 
+.sync-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sync-btn {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.sync-btn.primary {
+  background: linear-gradient(180deg, #2d71ff, #1f4ec8);
+  border-color: rgba(132, 173, 255, 0.52);
+}
+
+.sync-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .bp-indicator {
   display: flex;
   align-items: center;
@@ -845,6 +872,58 @@ body {
   color: rgba(255, 255, 255, 0.3);
   padding: 4px 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.generated-frame {
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.generated-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.generated-title {
+  margin: 0;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  max-width: 18ch;
+}
+
+.generated-subtitle {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+  opacity: 0.86;
+  max-width: 52ch;
+}
+
+.generated-cta-row {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.generated-cta {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.generated-meta {
+  font-size: 12px;
+  opacity: 0.74;
 }
 
 /* ── Status bar ────────────────────────────────────── */
