@@ -13,6 +13,10 @@ class PluginConnectionManager:
     async def connect(self, project_id: str, websocket: WebSocket) -> None:
         await websocket.accept()
         self._connections[project_id].add(websocket)
+        import logging
+        logging.getLogger("uvicorn").info(
+            f"WS registered project={project_id} manager_id={id(self)} total={len(self._connections[project_id])}"
+        )
 
     def disconnect(self, project_id: str, websocket: WebSocket) -> None:
         connections = self._connections.get(project_id)
@@ -24,6 +28,15 @@ class PluginConnectionManager:
 
     def is_connected(self, project_id: str) -> bool:
         return bool(self._connections.get(project_id))
+
+    def debug_info(self) -> dict:
+        return {
+            "manager_id": id(self),
+            "connections": {
+                pid: len(sockets)
+                for pid, sockets in self._connections.items()
+            },
+        }
 
     async def send_patch(self, project_id: str, patch: dict[str, Any]) -> bool:
         connections = list(self._connections.get(project_id, set()))
@@ -48,7 +61,8 @@ async def dispatch_patch_to_plugin(
     db: AsyncIOMotorDatabase, project_id: str, patch: dict[str, Any]
 ) -> None:
     now = datetime.now(timezone.utc)
-    delivered = await plugin_manager.send_patch(project_id, patch)
+    clean = _clean_for_json(patch)
+    delivered = await plugin_manager.send_patch(project_id, clean)
     if delivered:
         await db.card_patches.update_one(
             {"patch_id": patch["patch_id"]},
@@ -61,6 +75,22 @@ async def dispatch_patch_to_plugin(
         )
 
 
+def _clean_for_json(doc: dict[str, Any]) -> dict[str, Any]:
+    """Strip non-JSON-serializable fields before sending over WebSocket."""
+    skip = {"_id", "delivery_status", "delivered_at", "created_at", "ack_status", "acked_at", "ack_error"}
+    cleaned: dict[str, Any] = {}
+    for k, v in doc.items():
+        if k in skip:
+            continue
+        if isinstance(v, datetime):
+            cleaned[k] = v.isoformat()
+        elif type(v).__name__ == "ObjectId":
+            cleaned[k] = str(v)
+        else:
+            cleaned[k] = v
+    return cleaned
+
+
 async def replay_pending_patches(db: AsyncIOMotorDatabase, project_id: str) -> int:
     sent_count = 0
     cursor = db.card_patches.find(
@@ -71,8 +101,8 @@ async def replay_pending_patches(db: AsyncIOMotorDatabase, project_id: str) -> i
     ).sort("to_version", 1)
 
     async for patch in cursor:
-        patch.pop("_id", None)
-        delivered = await plugin_manager.send_patch(project_id, patch)
+        clean = _clean_for_json(patch)
+        delivered = await plugin_manager.send_patch(project_id, clean)
         if delivered:
             sent_count += 1
             await db.card_patches.update_one(

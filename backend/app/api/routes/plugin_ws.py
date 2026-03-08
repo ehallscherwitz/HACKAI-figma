@@ -7,7 +7,6 @@ from app.services.plugin_sync import (
     mark_plugin_disconnected,
     plugin_manager,
     record_plugin_ack,
-    replay_pending_patches,
     upsert_page_snapshot,
     upsert_plugin_session,
 )
@@ -31,7 +30,10 @@ async def plugin_websocket(
         return
 
     await plugin_manager.connect(project_id, websocket)
-    await replay_pending_patches(db, project_id)
+    await db.card_patches.delete_many({
+        "project_id": project_id,
+        "delivery_status": {"$in": ["pending", "failed"]},
+    })
     try:
         while True:
             payload = await websocket.receive_json()

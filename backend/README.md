@@ -78,21 +78,47 @@ If `MONGODB_URI` is not set, persistence routes return `503` with a setup messag
 
 Use the plugin in `figma-plugin/` to connect Figma directly to backend websocket and apply live patches.
 
-### Start ngrok tunnel (required for Figma plugin websocket)
+### Start tunnel (required for Figma plugin websocket)
+
+**Option A — Cloudflared (recommended, no interstitial):**
+
+```powershell
+& "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --url http://localhost:8000
+```
+
+**Option B — ngrok (has free-tier interstitial that blocks websocket):**
 
 ```powershell
 python -c "from pyngrok import ngrok; t=ngrok.connect(8000, bind_tls=True); print(t.public_url); input('Press Enter to stop...')"
 ```
 
-Note: each restart gives a new URL. Update plugin websocket field and manifest `allowedDomains` accordingly.
+Note: each restart gives a new URL. Update the plugin websocket URL accordingly.
 
-Quick flow:
+### Manifest
+
+Remove `networkAccess` entirely for dev mode — this allows unrestricted connections:
+
+```json
+{
+  "name": "hackai4",
+  "id": "1612308177747938125",
+  "api": "1.0.0",
+  "main": "code.js",
+  "capabilities": ["inspect"],
+  "enableProposedApi": false,
+  "documentAccess": "dynamic-page",
+  "editorType": ["figma", "dev"],
+  "ui": "ui.html"
+}
+```
+
+### Quick flow
 
 1. Import plugin manifest in Figma desktop:
    - `figma-plugin/manifest.json`
 2. Run plugin and connect websocket:
-   - `wss://<your-ngrok-domain>/api/v1/ws/plugin/default`
-   - Example: `wss://unlively-dextrocular-connor.ngrok-free.dev/api/v1/ws/plugin/default`
+   - Cloudflared: `wss://<cloudflared-domain>/api/v1/ws/plugin/default`
+   - Localhost: `ws://localhost:8000/api/v1/ws/plugin/default`
 3. Trigger backend update:
    - `POST /api/v1/gestures/apply` with `project_id=default`
 4. Verify plugin logs:
