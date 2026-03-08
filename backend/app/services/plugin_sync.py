@@ -40,6 +40,19 @@ class PluginConnectionManager:
                 self.disconnect(project_id, websocket)
         return delivered
 
+    async def broadcast(self, project_id: str, message: dict[str, Any]) -> bool:
+        connections = list(self._connections.get(project_id, set()))
+        if not connections:
+            return False
+        delivered = False
+        for websocket in connections:
+            try:
+                await websocket.send_json(message)
+                delivered = True
+            except Exception:
+                self.disconnect(project_id, websocket)
+        return delivered
+
 
 plugin_manager = PluginConnectionManager()
 
